@@ -10,7 +10,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
  * @author ZhuYX
  * @date 2021/04/16
  */
-public class DefaultRedisTemplate extends RedisTemplate<String, Object> {
+public class DefaultRedisTemplate<T> extends RedisTemplate<String, T> {
     public DefaultRedisTemplate() {
         setKeySerializer(RedisSerializer.string());
         setValueSerializer(RedisSerializer.json());
