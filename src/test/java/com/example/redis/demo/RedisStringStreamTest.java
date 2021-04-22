@@ -91,7 +91,13 @@ public class RedisStringStreamTest {
     }
 
     @Test
-    public void test_receive_async_StreamReceiver () {
-
+    public void test_receive_limit () {
+        for (int i = 100; i < 110; i++) {
+            listener.sendMessageLimitLength(Person.builder()
+                    .id(Long.parseLong(i + ""))
+                    .name("name_" + i)
+                    .birthday(LocalDate.now())
+                    .build());
+        }
     }
 }

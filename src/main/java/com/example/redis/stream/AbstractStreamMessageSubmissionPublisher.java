@@ -1,15 +1,15 @@
 package com.example.redis.stream;
 
 import com.example.redis.template.DefaultRedisTemplate;
-import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.common.reflection.qual.GetClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.ResolvableType;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStreamCommands;
 import org.springframework.data.redis.connection.stream.*;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.hash.Jackson2HashMapper;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -253,6 +253,40 @@ public abstract class AbstractStreamMessageSubmissionPublisher<T>
         }
     }
 
+
+    public MessageObject<T> sendMessageLimitLength(T message) {
+        if (message == null) {
+            return null;
+        }
+        try {
+            ObjectRecord<String, T> record = Record.of(message).withStreamKey(getQueueName());
+
+            assert genericClass != null;
+            MapRecord<String, String, T> entries = record.toMapRecord(getOpsStream().getHashMapper(genericClass));
+            var serialize = entries.serialize(RedisSerializer.string(), RedisSerializer.string(), RedisSerializer.json());
+
+            var recordId = defaultRedisTemplate.execute((RedisCallback<RecordId>) connection -> {
+                var streamCommands = connection.streamCommands();
+                return streamCommands.xAdd(serialize, RedisStreamCommands.XAddOptions.maxlen(10));
+            });
+
+            return MessageObject.<T>builder()
+                    .messageContent(message)
+                    .queueName(getQueueName())
+                    // .messageTime(recordId.getTimestamp())
+                    .build();
+            //
+            // var recordId = getOpsStream().add(record);
+            // return MessageObject.<T>builder()
+            //         .messageContent(message)
+            //         .queueName(getQueueName())
+            //         // .messageTime(recordId.getTimestamp())
+            //         .build();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            throw e;
+        }
+    }
 
     @Override
     public MessageObject<T> sendMessage(T message) {
